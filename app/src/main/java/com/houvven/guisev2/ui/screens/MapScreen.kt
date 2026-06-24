@@ -150,7 +150,7 @@ fun MapScreen(
                                     marker?.destroy()
                                     val markerOption = MarkerOptions()
                                         .position(point)
-                                        .title("%��前位置")
+                                        .title("当前位置")
                                         .draggable(true)
                                     marker = aMap?.addMarker(markerOption)
 
