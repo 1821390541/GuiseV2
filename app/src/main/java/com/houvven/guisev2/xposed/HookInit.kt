@@ -44,6 +44,51 @@ class HookInit : IXposedHookLoadPackage {
         const val MODULE_PACKAGE = "com.houvven.guisev2"
         var isActivated = false
             private set
+
+        /**
+         * 写入激活标记文件，使模块App能通过文件存在性检测到模块被激活。
+         * 此方法在目标应用进程中被调用（LSPosed加载模块后），
+         * 尝试在多个可公共访问的位置写入标记。
+         */
+        fun writeActivationMark() {
+            // 标记路径列表：按优先级排列
+            val markers = listOf(
+                // 1. /data/local/tmp/ - 通常LSPosed目标进程可写入
+                "/data/local/tmp/.guisev2_activated",
+            )
+            for (path in markers) {
+                try {
+                    val file = java.io.File(path)
+                    file.parentFile?.mkdirs()
+                    if (file.createNewFile()) {
+                        file.setReadable(true, false)
+                        file.setWritable(true, false)
+                        XposedBridge.log("[GuiseV2] 写入激活标记: $path")
+                    }
+                } catch (e: Throwable) {
+                    XposedBridge.log("[GuiseV2] 写入标记[$path]失败: ${e.message}")
+                }
+            }
+
+            // 2. 尝试写入模块App的外部缓存目录（通过/sdcard路径）
+            // 需要模块App已有外部存储权限或该目录已创建
+            try {
+                val sdcardMarker = java.io.File(
+                    "/sdcard/Android/data/com.houvven.guisev2/cache/.xposed_activated"
+                )
+                sdcardMarker.parentFile?.mkdirs()
+                if (sdcardMarker.createNewFile()) {
+                    sdcardMarker.setReadable(true, false)
+                }
+            } catch (_: Throwable) {}
+
+            // 3. 尝试通过Shell命令设置文件权限（需root）
+            try {
+                Runtime.getRuntime().exec(arrayOf(
+                    "chmod", "777", "/data/local/tmp/.guisev2_activated"
+                )).waitFor()
+            } catch (_: Throwable) {}
+        }
     }
 
     override fun handleLoadPackage(lpparam: XC_LoadPackage.LoadPackageParam) {
@@ -55,6 +100,10 @@ class HookInit : IXposedHookLoadPackage {
             XposedBridge.log("[GuiseV2] 模块已激活: $packageName")
             return
         }
+
+        // 每当任意目标应用被Hook时，写入激活标记文件
+        // 使模块App进程能通过文件存在性检测自身是否被LSPosed激活
+        writeActivationMark()
 
         // 读取配置
         val config = loadConfig(packageName) ?: return

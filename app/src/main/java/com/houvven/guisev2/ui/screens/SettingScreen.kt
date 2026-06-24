@@ -39,19 +39,55 @@ enum class ConfigCategory(val displayName: String, val fields: List<String>) {
 }
 
 // 检测Xposed模块是否激活的辅助函数
+// 核心思路：无法在模块App自身进程中通过Class.forName检测XposedBridge，
+// 因为XposedBridge只存在于被Hook的目标应用进程的ClassLoader中。
+// 采用组合检测策略：
+// 1. 文件标记法 - HookInit.handleLoadPackage()被调用时（目标进程）会尝试写入标记文件
+// 2. 备用 - 现有Class.forName检测（某些特殊场景可能有效）
+// 3. 备用 - 检测系统服务中的Xposed特征
 fun isXposedModuleActive(): Boolean {
-    return try {
-        // 尝试加载XposedBridge类，如果模块已激活，该类在ClassLoader中应可访问
-        Class.forName("de.robv.android.xposed.XposedBridge")
-        // 进一步检查是否在Xposed上下文中运行
+    // === 检测方式1: 文件标记法 ===
+    // HookInit.handleLoadPackage() 在任何一个目标应用被Hook时,
+    // 会尝试写入这些文件来标记模块已激活
+    val markerPaths = listOf(
+        "/data/local/tmp/.guisev2_activated",
+        "/sdcard/Android/data/com.houvven.guisev2/cache/.xposed_activated"
+    )
+    for (path in markerPaths) {
         try {
-            Class.forName("android.app.AndroidAppHelper")
-            true
-        } catch (e: ClassNotFoundException) {
-            // XposedBridge存在但AndroidAppHelper不存在——可能是部分加载
-            true // 仍然视为已激活
-        }
+            if (java.io.File(path).exists()) {
+                return true
+            }
+        } catch (_: Exception) {}
+    }
+
+    // === 检测方式2: Class.forName（原检测逻辑，保留作为兜底，部分定制ROM或特殊环境可能有效） ===
+    return try {
+        Class.forName("de.robv.android.xposed.XposedBridge")
+        // XposedBridge存在即视为已激活
+        true
     } catch (e: ClassNotFoundException) {
+        // === 检测方式3: 尝试读取LSPosed模块配置目录 ===
+        try {
+            // LSPosed 1.8+ 在 /data/system/lsposed/ 或 /data/misc/lsposed/ 存储模块配置
+            val lsposedDirs = listOf(
+                "/data/system/lsposed/",
+                "/data/misc/lsposed/"
+            )
+            for (dir in lsposedDirs) {
+                val d = java.io.File(dir)
+                if (d.exists() && d.isDirectory) {
+                    // 目录存在说明LSPosed已安装，进一步检查是否有模块配置
+                    val moduleConfigs = d.listFiles { file ->
+                        file.name.contains("guisev2", ignoreCase = true) ||
+                        file.name.contains("com.houvven.guisev2", ignoreCase = true)
+                    }
+                    if (moduleConfigs != null && moduleConfigs.isNotEmpty()) {
+                        return true
+                    }
+                }
+            }
+        } catch (_: Exception) {}
         false
     } catch (e: Exception) {
         false

@@ -31,6 +31,10 @@
         tools:targetApi="34">
 
         <!-- 高德地图SDK -->
+        <!-- ⚠️ 重要提示：当前Key e3ad31d868b06dff03b01c2cc8f3274d 是调试用Key，
+             需要使用与您当前应用签名匹配的Key才能正常显示地图底图。
+             如果地图页显示空白，请在 https://lbs.amap.com/ 注册并替换为您自己的Key。
+             注册时需提供应用包名（com.houvven.guisev2）和当前签名的SHA1值。 -->
         <meta-data
             android:name="com.amap.api.v2.apikey"
             android:value="e3ad31d868b06dff03b01c2cc8f3274d" />

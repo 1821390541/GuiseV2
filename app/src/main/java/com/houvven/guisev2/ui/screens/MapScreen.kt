@@ -29,8 +29,10 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
 import com.amap.api.maps.AMap
+import com.amap.api.maps.AMapOptions
 import com.amap.api.maps.CameraUpdateFactory
 import com.amap.api.maps.MapView
+import com.amap.api.maps.UiSettings
 import com.amap.api.maps.model.LatLng
 import com.amap.api.maps.model.Marker
 import com.amap.api.maps.model.MarkerOptions
@@ -292,66 +294,71 @@ fun MapScreen(
                     .padding(horizontal = 12.dp)
                     .padding(bottom = 12.dp)
             ) {
-                var isMapInitialized by remember { mutableStateOf(false) }
-                
                 AndroidView(
                     factory = { ctx ->
                         MapView(context).apply {
-                            // 调用MapView.onCreate - 必须调用，否则地图不显示
+                            // 必须调用MapView.onCreate，否则地图不显示
                             this.onCreate(null)
                             mapView = this
-                            aMap = this.map
-                            isMapInitialized = true
 
-                            // 获取地图UI设置
-                            val uiSettings = aMap?.uiSettings
-                            uiSettings?.isZoomControlsEnabled = true  // 显示缩放按钮
-                            uiSettings?.isMyLocationButtonEnabled = false  // 使用自定义按钮
+                            // 使用getMapAsync回调确保AMap初始化完成后再操作
+                            // 高德SDK的MapView.onCreate()触发异步初始化，
+                            // 同步getMap()在onCreate后可能返回导致后续设置不生效
+                            this.getMapAsync { amap ->
+                                aMap = amap
 
-                            // 设置初始位置
-                            val initLat = configManager.getCurrentLocation().first
-                            val initLng = configManager.getCurrentLocation().second
-                            val initPoint = LatLng(initLat, initLng)
-                            aMap?.moveCamera(
-                                CameraUpdateFactory.newLatLngZoom(initPoint, 16f)
-                            )
+                                // 获取地图UI设置
+                                val uiSettings = amap.uiSettings
+                                uiSettings.isZoomControlsEnabled = true  // 显示缩放按钮
+                                uiSettings.isMyLocationButtonEnabled = false  // 使用自定义按钮
+                                uiSettings.isCompassEnabled = true  // 显示指南针
+                                uiSettings.isScaleControlsEnabled = true  // 显示比例尺
 
-                            // 添加初始标记
-                            val markerOption = MarkerOptions()
-                                .position(initPoint)
-                                .title("当前位置")
-                                .draggable(true)
-                            marker = aMap?.addMarker(markerOption)
+                                // 设置初始位置
+                                val initLat = configManager.getCurrentLocation().first
+                                val initLng = configManager.getCurrentLocation().second
+                                val initPoint = LatLng(initLat, initLng)
+                                amap.moveCamera(
+                                    CameraUpdateFactory.newLatLngZoom(initPoint, 16f)
+                                )
 
-                            // 设置地图点击事件
-                            aMap?.setOnMapClickListener { point ->
-                                longitudeText = point.longitude.toString()
-                                latitudeText = point.latitude.toString()
-                                marker?.destroy()
-                                val newMarkerOption = MarkerOptions()
-                                    .position(point)
-                                    .title("${point.latitude}, ${point.longitude}")
+                                // 添加初始标记
+                                val markerOption = MarkerOptions()
+                                    .position(initPoint)
+                                    .title("当前位置")
                                     .draggable(true)
-                                marker = aMap?.addMarker(newMarkerOption)
-                                configManager.setCurrentLocation(point.latitude, point.longitude)
-                            }
+                                marker = amap.addMarker(markerOption)
 
-                            // 设置标记拖拽监听
-                            aMap?.setOnMarkerDragListener(object : AMap.OnMarkerDragListener {
-                                override fun onMarkerDrag(marker: Marker) {}
-                                override fun onMarkerDragEnd(marker: Marker) {
-                                    val point = marker.position
+                                // 设置地图点击事件
+                                amap.setOnMapClickListener { point ->
                                     longitudeText = point.longitude.toString()
                                     latitudeText = point.latitude.toString()
+                                    marker?.destroy()
+                                    val newMarkerOption = MarkerOptions()
+                                        .position(point)
+                                        .title("${point.latitude}, ${point.longitude}")
+                                        .draggable(true)
+                                    marker = amap.addMarker(newMarkerOption)
                                     configManager.setCurrentLocation(point.latitude, point.longitude)
                                 }
-                                override fun onMarkerDragStart(marker: Marker) {}
-                            })
 
-                            // 地图加载完成回调
-                            aMap?.setOnMapLoadedListener {
-                                // 地图加载完成后，确保resume被调用
-                                mapView?.onResume()
+                                // 设置标记拖拽监听
+                                amap.setOnMarkerDragListener(object : AMap.OnMarkerDragListener {
+                                    override fun onMarkerDrag(marker: Marker) {}
+                                    override fun onMarkerDragEnd(marker: Marker) {
+                                        val point = marker.position
+                                        longitudeText = point.longitude.toString()
+                                        latitudeText = point.latitude.toString()
+                                        configManager.setCurrentLocation(point.latitude, point.longitude)
+                                    }
+                                    override fun onMarkerDragStart(marker: Marker) {}
+                                })
+
+                                // 地图加载完成回调
+                                amap.setOnMapLoadedListener {
+                                    // 地图加载完成后标记
+                                    mapView?.onResume()
+                                }
                             }
 
                             this
