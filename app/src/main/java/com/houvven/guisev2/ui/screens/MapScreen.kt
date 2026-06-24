@@ -40,7 +40,7 @@ fun MapScreen(
     var mockEnabled by remember { mutableStateOf(value = configManager.isMockLocationEnabled()) }
     var mapView by remember { mutableStateOf<MapView?>(value = null) }
     var aMap by remember { mutableStateOf<AMap?>(value = null) }
-    var marker by remember { mutableStateOf<Marker?>() }
+    var marker by remember { mutableStateOf<Marker?>(value = null) }
 
     Scaffold(
         topBar = {
