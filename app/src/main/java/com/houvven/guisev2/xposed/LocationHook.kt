@@ -133,7 +133,8 @@ object LocationHook {
     fun getMockedSimCountry(): String? = if (mockEnabled) mockSimCountry else null
     fun getMockedImei(): String? = if (mockEnabled) mockImei else null
     fun getMockedPhoneNum(): String? = if (mockEnabled) mockPhoneNum else null
-\n    fun getMockedLine1Number(): String? = if (mockEnabled) mockLine1Number else null
+
+    fun getMockedLine1Number(): String? = if (mockEnabled) mockLine1Number else null
     fun getMockedNetworkType(): Int? = if (mockEnabled) mockNetworkType else null
     fun getMockedBatteryLevel(): Int? = if (mockEnabled) mockBatteryLevel else null
 
