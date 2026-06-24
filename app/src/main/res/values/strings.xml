@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 应用名称 -->
+    <string name="app_name">GuiseV2</string>
+    <string name="module_name">GuiseV2 虚拟定位模块</string>
+    <string name="module_description">基于LSPosed的虚拟定位与设备信息伪装模块</string>
+</resources>
