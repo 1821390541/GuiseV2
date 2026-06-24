@@ -10,7 +10,11 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        // 百度地图Maven仓库
+        // Xposed Framework Maven仓库
+        maven { url = uri("https://api.xposed.info/") }
+        // 阿里云镜像加速 (Xposed也在内)
+        maven { url = uri("https://maven.aliyun.com/repository/public/") }
+        // 高德地图/百度地图Maven仓库
         maven { url = uri("https://mapapi.bugly.qq.com/maven/") }
         maven { url = uri("https://mapapi.bugly.qq.com/maven/release/") }
         // JitPack
