@@ -7,7 +7,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Error
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -36,6 +38,26 @@ enum class ConfigCategory(val displayName: String, val fields: List<String>) {
     版本信息("版本信息", listOf("versionCode", "versionName"))
 }
 
+// 检测Xposed模块是否激活的辅助函数
+fun isXposedModuleActive(): Boolean {
+    return try {
+        // 尝试加载XposedBridge类，如果模块已激活，该类在ClassLoader中应可访问
+        Class.forName("de.robv.android.xposed.XposedBridge")
+        // 进一步检查是否在Xposed上下文中运行
+        try {
+            Class.forName("android.app.AndroidAppHelper")
+            true
+        } catch (e: ClassNotFoundException) {
+            // XposedBridge存在但AndroidAppHelper不存在——可能是部分加载
+            true // 仍然视为已激活
+        }
+    } catch (e: ClassNotFoundException) {
+        false
+    } catch (e: Exception) {
+        false
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingScreen(
@@ -47,6 +69,9 @@ fun SettingScreen(
     var showEditDialog by remember { mutableStateOf(false) }
     var selectedCategory by remember { mutableStateOf(ConfigCategory.应用目标) }
     var editingConfig by remember { mutableStateOf(ModuleConfig()) }
+
+    // Xposed激活状态状态
+    var xposedActive by remember { mutableStateOf(isXposedModuleActive()) }
 
     Scaffold(
         topBar = {
@@ -70,6 +95,57 @@ fun SettingScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
+            // ========== Xposed激活状态卡片 ==========
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (xposedActive)
+                        MaterialTheme.colorScheme.primaryContainer
+                    else
+                        MaterialTheme.colorScheme.errorContainer
+                )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (xposedActive) {
+                        Icon(
+                            Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    } else {
+                        Icon(
+                            Icons.Default.Error,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Xposed 模块状态",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = if (xposedActive) "✅ 模块已激活 — 在LSPosed作用域中启用" else "❌ 模块未激活 — 请在LSPosed中为应用启用此模块",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
             // 配置列表区域
             if (configs.isEmpty()) {
                 Box(

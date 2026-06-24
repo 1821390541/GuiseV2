@@ -1,8 +1,13 @@
 package com.houvven.guisev2.ui.screens
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.pm.PackageManager
 import android.location.LocationManager
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -18,6 +23,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.amap.api.maps.AMap
 import com.amap.api.maps.CameraUpdateFactory
 import com.amap.api.maps.MapView
@@ -33,6 +42,7 @@ fun MapScreen(
     configManager: ModuleConfigManager
 ) {
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
 
     // 状态变量
     var latitudeText by remember { mutableStateOf(configManager.getCurrentLocation().first.toString()) }
@@ -41,6 +51,43 @@ fun MapScreen(
     var mapView by remember { mutableStateOf<MapView?>(value = null) }
     var aMap by remember { mutableStateOf<AMap?>(value = null) }
     var marker by remember { mutableStateOf<Marker?>(value = null) }
+    
+    // 定位权限状态
+    var hasLocationPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+    
+    // 定位权限请求
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        hasLocationPermission = isGranted
+        if (isGranted) {
+            Toast.makeText(context, "定位权限已获取", Toast.LENGTH_SHORT).show()
+        } else {
+            Toast.makeText(context, "定位权限被拒绝，无法获取当前位置", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // 管理MapView生命周期 - 与Activity/Fragment生命周期同步
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> mapView?.onResume()
+                Lifecycle.Event.ON_PAUSE -> mapView?.onPause()
+                Lifecycle.Event.ON_DESTROY -> {
+                    mapView?.onDestroy()
+                }
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -133,28 +180,63 @@ fun MapScreen(
                         // 获取当前位置按钮
                         Button(
                             onClick = {
-                                val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
-                                val location = locationManager?.getLastKnownLocation(LocationManager.GPS_PROVIDER)
-                                    ?: locationManager?.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
-
-                                if (location != null) {
-                                    val lat = location.latitude
-                                    val lng = location.longitude
-                                    latitudeText = lat.toString()
-                                    longitudeText = lng.toString()
-
-                                    val point = LatLng(lat, lng)
-                                    aMap?.animateCamera(
-                                        CameraUpdateFactory.newLatLngZoom(point, 16f)
+                                // 先检查权限
+                                if (!hasLocationPermission) {
+                                    locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+                                    return@Button
+                                }
+                                
+                                try {
+                                    val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
+                                    if (locationManager == null) {
+                                        Toast.makeText(context, "无法获取位置服务", Toast.LENGTH_SHORT).show()
+                                        return@Button
+                                    }
+                                    
+                                    // 尝试从所有可用提供者获取位置
+                                    val providers = listOf(
+                                        LocationManager.GPS_PROVIDER,
+                                        LocationManager.NETWORK_PROVIDER,
+                                        LocationManager.PASSIVE_PROVIDER
                                     )
-                                    marker?.destroy()
-                                    val markerOption = MarkerOptions()
-                                        .position(point)
-                                        .title("当前位置")
-                                        .draggable(true)
-                                    marker = aMap?.addMarker(markerOption)
+                                    var location: android.location.Location? = null
+                                    for (provider in providers) {
+                                        try {
+                                            val lastLocation = locationManager.getLastKnownLocation(provider)
+                                            if (lastLocation != null) {
+                                                location = lastLocation
+                                                break
+                                            }
+                                        } catch (_: SecurityException) {
+                                            // 权限不足，跳过此提供者
+                                        } catch (_: IllegalArgumentException) {
+                                            // 提供者不存在，跳过
+                                        }
+                                    }
 
-                                    configManager.setCurrentLocation(lat, lng)
+                                    if (location != null) {
+                                        val lat = location.latitude
+                                        val lng = location.longitude
+                                        latitudeText = lat.toString()
+                                        longitudeText = lng.toString()
+
+                                        val point = LatLng(lat, lng)
+                                        aMap?.animateCamera(
+                                            CameraUpdateFactory.newLatLngZoom(point, 16f)
+                                        )
+                                        marker?.destroy()
+                                        val markerOption = MarkerOptions()
+                                            .position(point)
+                                            .title("当前位置")
+                                            .draggable(true)
+                                        marker = aMap?.addMarker(markerOption)
+
+                                        configManager.setCurrentLocation(lat, lng)
+                                    } else {
+                                        Toast.makeText(context, "暂无可用位置信息，请开启GPS后再试", Toast.LENGTH_SHORT).show()
+                                    }
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, "获取位置失败: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
                                 }
                             },
                             modifier = Modifier.weight(1f)
@@ -206,11 +288,21 @@ fun MapScreen(
                     .padding(horizontal = 12.dp)
                     .padding(bottom = 12.dp)
             ) {
+                var isMapInitialized by remember { mutableStateOf(false) }
+                
                 AndroidView(
                     factory = { ctx ->
                         MapView(context).apply {
+                            // 调用MapView.onCreate - 必须调用，否则地图不显示
+                            this.onCreate(null)
                             mapView = this
                             aMap = this.map
+                            isMapInitialized = true
+
+                            // 获取地图UI设置
+                            val uiSettings = aMap?.uiSettings
+                            uiSettings?.isZoomControlsEnabled = true  // 显示缩放按钮
+                            uiSettings?.isMyLocationButtonEnabled = false  // 使用自定义按钮
 
                             // 设置初始位置
                             val initLat = configManager.getCurrentLocation().first
@@ -227,7 +319,7 @@ fun MapScreen(
                                 .draggable(true)
                             marker = aMap?.addMarker(markerOption)
 
-                            // 设置地图点击事件 (高德使用 lambda 形式)
+                            // 设置地图点击事件
                             aMap?.setOnMapClickListener { point ->
                                 longitudeText = point.longitude.toString()
                                 latitudeText = point.latitude.toString()
@@ -242,21 +334,21 @@ fun MapScreen(
 
                             // 设置标记拖拽监听
                             aMap?.setOnMarkerDragListener(object : AMap.OnMarkerDragListener {
-                                override fun onMarkerDrag(marker: Marker) {
-                                    // 拖拽中
-                                }
-
+                                override fun onMarkerDrag(marker: Marker) {}
                                 override fun onMarkerDragEnd(marker: Marker) {
                                     val point = marker.position
                                     longitudeText = point.longitude.toString()
                                     latitudeText = point.latitude.toString()
                                     configManager.setCurrentLocation(point.latitude, point.longitude)
                                 }
-
-                                override fun onMarkerDragStart(marker: Marker) {
-                                    // 开始拖拽
-                                }
+                                override fun onMarkerDragStart(marker: Marker) {}
                             })
+
+                            // 地图加载完成回调
+                            aMap?.setOnMapLoadedListener {
+                                // 地图加载完成后，确保resume被调用
+                                mapView?.onResume()
+                            }
 
                             this
                         }
