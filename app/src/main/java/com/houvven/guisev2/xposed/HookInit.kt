@@ -2,6 +2,7 @@ package com.houvven.guisev2.xposed
 
 import android.content.Context
 import android.location.GpsSatellite
+import android.location.Criteria
 import android.location.Location
 import android.os.Build
 import android.os.Bundle
