@@ -37,9 +37,9 @@ fun MapScreen(
     // 状态变量
     var latitudeText by remember { mutableStateOf(configManager.getCurrentLocation().first.toString()) }
     var longitudeText by remember { mutableStateOf(configManager.getCurrentLocation().second.toString()) }
-    var mockEnabled by remember { mutableStateOf(configManager.isMockLocationEnabled()) }
-    var mapView by remember { mutableStateOf<MapView?>() }
-    var aMap by remember { mutableStateOf<AMap?>() }
+    var mockEnabled by remember { mutableStateOf(value = configManager.isMockLocationEnabled()) }
+    var mapView by remember { mutableStateOf<MapView?>(value = null) }
+    var aMap by remember { mutableStateOf<AMap?>(value = null) }
     var marker by remember { mutableStateOf<Marker?>() }
 
     Scaffold(
@@ -150,7 +150,7 @@ fun MapScreen(
                                     marker?.destroy()
                                     val markerOption = MarkerOptions()
                                         .position(point)
-                                        .title("当前位置")
+                                        .title("%��前位置")
                                         .draggable(true)
                                     marker = aMap?.addMarker(markerOption)
 
