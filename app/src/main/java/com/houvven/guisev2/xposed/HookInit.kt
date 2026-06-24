@@ -91,7 +91,7 @@ class HookInit : IXposedHookLoadPackage {
     private fun loadConfig(packageName: String): ModuleConfig? {
         return try {
             val prefs = XposedHelpers.newInstance(
-                "de.robv.android.xposed.XSharedPreferences",
+                de.robv.android.xposed.XSharedPreferences::class.java,
                 MODULE_PACKAGE,
                 "guisev2_config"
             ) as de.robv.android.xposed.XSharedPreferences
