@@ -41,7 +41,7 @@ enum class ConfigCategory(val displayName: String, val fields: List<String>) {
 fun SettingScreen(
     configManager: ModuleConfigManager
 ) {
-    var configs by remember { mutableStateOf(configManager.loadConfigs()) }
+    var configs by remember { mutableStateOf<List<ModuleConfig>>(value = configManager.loadConfigs()) }
     var selectedConfig by remember { mutableStateOf<ModuleConfig?>() }
     var showAddDialog by remember { mutableStateOf(false) }
     var showEditDialog by remember { mutableStateOf(false) }
