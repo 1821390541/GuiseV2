@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.location.LocationManager
 import android.widget.Toast
+import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
@@ -26,7 +27,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.LifecycleOwner
 import com.amap.api.maps.AMap
 import com.amap.api.maps.CameraUpdateFactory
 import com.amap.api.maps.MapView
@@ -42,7 +43,10 @@ fun MapScreen(
     configManager: ModuleConfigManager
 ) {
     val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
+    // 从 Activity 中获取 LifecycleOwner
+    val lifecycleOwner = remember(context) {
+        (context as ComponentActivity) as LifecycleOwner
+    }
 
     // 状态变量
     var latitudeText by remember { mutableStateOf(configManager.getCurrentLocation().first.toString()) }
