@@ -42,7 +42,7 @@ fun SettingScreen(
     configManager: ModuleConfigManager
 ) {
     var configs by remember { mutableStateOf<List<ModuleConfig>>(value = configManager.loadConfigs()) }
-    var selectedConfig by remember { mutableStateOf<ModuleConfig?>() }
+    var selectedConfig by remember { mutableStateOf<ModuleConfig?>(value = null) }
     var showAddDialog by remember { mutableStateOf(false) }
     var showEditDialog by remember { mutableStateOf(false) }
     var selectedCategory by remember { mutableStateOf(ConfigCategory.应用目标) }
