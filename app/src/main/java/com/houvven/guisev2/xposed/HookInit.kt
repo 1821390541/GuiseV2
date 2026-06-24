@@ -191,7 +191,7 @@ class HookInit : IXposedHookLoadPackage {
 
             // getBestProvider - 返回"gps"
             XposedHelpers.findAndHookMethod(locationManagerClass, "getBestProvider",
-                android.content.Criteria::class.java, Boolean::class.javaPrimitiveType,
+                android.location.Criteria::class.java, Boolean::class.javaPrimitiveType,
                 object : XC_MethodHook() {
                     override fun afterHookedMethod(param: MethodHookParam) {
                         if (LocationHook.mockEnabled) param.result = "gps"
