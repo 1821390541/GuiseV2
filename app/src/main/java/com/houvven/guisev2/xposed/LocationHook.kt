@@ -61,6 +61,16 @@ object LocationHook {
     @Volatile
     var mockCid: Int? = null
 
+    // 当前模拟的电话线路类型
+    @Volatile
+    var mockLine1Number: String? = null
+
+    @Volatile
+    var mockNetworkType: Int? = null
+
+    // 当前模拟的电量
+    @Volatile
+    var mockBatteryLevel: Int? = null
     // 虚拟定位是否启用
     @Volatile
     var mockEnabled: Boolean = false
@@ -123,6 +133,9 @@ object LocationHook {
     fun getMockedSimCountry(): String? = if (mockEnabled) mockSimCountry else null
     fun getMockedImei(): String? = if (mockEnabled) mockImei else null
     fun getMockedPhoneNum(): String? = if (mockEnabled) mockPhoneNum else null
+\n    fun getMockedLine1Number(): String? = if (mockEnabled) mockLine1Number else null
+    fun getMockedNetworkType(): Int? = if (mockEnabled) mockNetworkType else null
+    fun getMockedBatteryLevel(): Int? = if (mockEnabled) mockBatteryLevel else null
 
     fun getMockedLac(): Int? = if (mockEnabled) mockLac else null
     fun getMockedCid(): Int? = if (mockEnabled) mockCid else null
@@ -149,6 +162,9 @@ object LocationHook {
         mockSimCountry = config.simCountry.ifEmpty { null }
         mockImei = config.imei.ifEmpty { null }
         mockPhoneNum = config.phoneNum.ifEmpty { null }
+        mockLine1Number = config.phoneNum.ifEmpty { null }
+        mockNetworkType = config.networkType.toIntOrNull()
+        mockBatteryLevel = config.batteryLevel
         mockLac = if (config.lac != 0) config.lac else null
         mockCid = if (config.cid != 0) config.cid else null
         randomOffsetEnabled = config.randomOffset
